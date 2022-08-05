@@ -5,5 +5,6 @@ A Powershell module that allows you to always have an updated copy of a file fro
 ```PowerShell
 Install-Module WebfileCacher
 Import-Module WebfileCacher
-Get-CachedFile -URL "https://github.com/PCSD202/AutopilotQuick/releases/latest/download/AutopilotQuick.zip" -Name "AutopilotQuick.zip" -Dir "$env:TEMP\Test"
+$URL = "https://github.com/PCSD202/AutopilotQuick/releases/latest/download/AutopilotQuick.zip"
+Get-CachedFile -URL $URL -Name "AutopilotQuick.zip" -Dir "$env:TEMP\Test"
 ```
