@@ -5,5 +5,5 @@ A Powershell module that allows you to always have an updated copy of a file fro
 ```PowerShell
 Install-Module WebfileCacher
 Import-Module WebfileCacher
-Get-CachedFile -Name "test.pdf" -URL "https://www.microsoft.com/en-us/research/wp-content/uploads/2004/12/tr-2004-136.pdf" -Dir "$env:TEMP"
+Get-CachedFile -URL "https://github.com/PCSD202/AutopilotQuick/releases/latest/download/AutopilotQuick.zip" -Name "AutopilotQuick.zip" -Dir "$env:TEMP\Test"
 ```
