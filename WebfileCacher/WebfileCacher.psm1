@@ -7,13 +7,13 @@ class Cacher {
 
     #The directory that we download the file to
     [string]$BaseDir
-    
+
     #The path to the json file for this cached file
     [string] hidden $FileCacheDataPath
 
     #The path to the downloaded file
     [string]$FilePath
-    
+
     Cacher(
         [string]$FileName,
         [string]$FileURL,
@@ -41,7 +41,6 @@ class Cacher {
             Write-Warning $_
             return [datetime]::MaxValue
         }
-        
     }
 
     [datetime] GetCachedFileLastModified() {
@@ -183,7 +182,7 @@ function Get-FileFromURL {
 
 <#
  .Synopsis
-  Gets a cacher object, so you can use Get() or to see when the cache was last updated 
+  Gets a cacher object, so you can use Get() or to see when the cache was last updated.
 
  .Description
   Gets a cacher object with the parameters.
@@ -219,7 +218,7 @@ function Get-Cacher {
 
 <#
  .Synopsis
-  Gets the path to the cached file. If the file does not exist or the cached version is older it is downloaded. 
+  Gets the path to the cached file. If the file does not exist or the cached version is older it is downloaded.
 
  .Description
   Makes sure that the file given by the parameters is up to date, downloading the updated version if necessary, and returning the FileInfo for it.
@@ -256,7 +255,6 @@ function Get-CachedFile {
         [string]$BaseDir
     )
     return (Get-Cacher -Name $FileName -URL $FileURL -Dir $BaseDir).Get()
-    
 }
 
 Export-ModuleMember -Function Get-FileFromURL, Get-Cacher, Get-CachedFile
