@@ -1,3 +1,5 @@
+Add-Type -Path "$PSScriptRoot\Humanizer.dll"
+
 class Cacher {
     #The name of the file once downloaded.
     [string]$FileName
@@ -146,9 +148,9 @@ function Get-FileFromURL {
                     if ($Global:update_progress) {
                         $percent = $downloaded_bytes / $total_bytes
                         $status = @{
-                            completed  = "{0,6:p2} Completed" -f $percent
-                            downloaded = "{0:n0} MB of {1:n0} MB" -f ($downloaded_bytes / 1MB), ($total_bytes / 1MB)
-                            speed      = "{0,7:n0} KB/s" -f (($downloaded_bytes - $prev_downloaded_bytes) / 1KB)
+                            completed  = "{0,6:p0} Completed" -f $percent
+                            downloaded = "$([Humanizer.ByteSizeExtensions]::Bytes($downloaded_bytes).ToString("0.00")) of $([Humanizer.ByteSizeExtensions]::Bytes($total_bytes).ToString("0.00"))"
+                            speed      = "$([Humanizer.ByteSizeExtensions]::Bytes(($downloaded_bytes - $prev_downloaded_bytes)).ToString("0.00"))/s"
                             eta        = "eta {0:hh\:mm\:ss}" -f (New-TimeSpan -Seconds (($total_bytes - $downloaded_bytes) / ($downloaded_bytes - $prev_downloaded_bytes)))
                         }
                         $progress_args = @{
