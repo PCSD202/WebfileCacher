@@ -33,7 +33,7 @@ class Cacher {
 
     [datetime] GetLastModifiedFromWeb() {
         try {
-            $headers = (Invoke-WebRequest $this.FileURL -Method Head).Headers;
+            $headers = (Invoke-WebRequest $this.FileURL -Method Head -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop).Headers;
             $dateStr = $headers.'Last-Modified'
             $date = [datetime]::ParseExact($dateStr, "R", $null)
             return [datetime]::SpecifyKind($date, 1)
@@ -51,7 +51,7 @@ class Cacher {
         }
         try {
             $dateStr = (Get-Content $this.FileCacheDataPath | ConvertFrom-Json)."LastModified"
-            $date = [datetime]::ParseExact($dateStr, "yyyy-MM-ddTHH:mm:ssZ", $null)
+            $date = [datetime]::ParseExact($dateStr, "yyyy-MM-ddTHH:mm:ssZ", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
             return $date.ToUniversalTime()
         }
         catch {
@@ -71,11 +71,18 @@ class Cacher {
 
     [void] DownloadUpdate() {
         Get-FileFromURL -URL $this.FileURL -Filepath $this.FilePath
-        $this.SetCachedFileLastModified($this.GetLastModifiedFromWeb())
+        $lastModified = $this.GetLastModifiedFromWeb()
+        if ($lastModified -ne [datetime]::MaxValue) {
+            $this.SetCachedFileLastModified($lastModified)
+        } else {
+            # An unavailable header must not make an unknown timestamp look fresh forever.
+            Remove-Item -LiteralPath $this.FileCacheDataPath -Force -ErrorAction SilentlyContinue
+        }
     }
 
     [System.IO.FileInfo]Get() {
-        if (!(($this.GetCachedFileLastModified() -ge $this.GetLastModifiedFromWeb()) -and (Test-Path ($this.FilePath)))) {
+        $lastModified = $this.GetLastModifiedFromWeb()
+        if (!(($lastModified -ne [datetime]::MaxValue) -and ($this.GetCachedFileLastModified() -ge $lastModified) -and (Test-Path ($this.FilePath)))) {
             try {
                 $this.DownloadUpdate()
             } catch {
@@ -118,6 +125,11 @@ function Get-FileFromURL {
     )
 
     process {
+        $destination = [System.IO.Path]::GetFullPath($Filepath)
+        $temporaryPath = $destination + '.' + [guid]::NewGuid().ToString('N') + '.download'
+        $downloaded_bytes = 0L
+        $prev_downloaded_bytes = 0L
+        $Global:update_progress = $false
         try {
             $request = [System.Net.HttpWebRequest]::Create($URL)
             $request.set_Timeout(5000) # 5 second timeout
@@ -131,7 +143,8 @@ function Get-FileFromURL {
                 # See https://www.microsoft.com/en-us/research/wp-content/uploads/2004/12/tr-2004-136.pdf
                 # Cf. https://stackoverflow.com/a/3034155/10504393
                 $buffer = New-Object -TypeName byte[] -ArgumentList (256KB)
-                $target_stream = [System.IO.File]::Create($Filepath, (256KB), [System.IO.FileOptions]::SequentialScan)
+                # Download beside the cache, so a failure cannot truncate its previous copy.
+                $target_stream = [System.IO.File]::Create($temporaryPath, (256KB), [System.IO.FileOptions]::SequentialScan)
 
                 $timer = New-Object -TypeName timers.timer
                 $timer.Interval = 1000 # Update progress every second
@@ -145,7 +158,7 @@ function Get-FileFromURL {
                     $target_stream.Write($buffer, 0, $count)
                     $downloaded_bytes = $downloaded_bytes + $count
 
-                    if ($Global:update_progress) {
+                    if ($Global:update_progress -and $total_bytes -gt 0 -and $downloaded_bytes -gt $prev_downloaded_bytes) {
                         $percent = $downloaded_bytes / $total_bytes
                         $status = @{
                             completed  = "{0,6:p0} Completed" -f $percent
@@ -164,19 +177,30 @@ function Get-FileFromURL {
                         $Global:update_progress = $false
                     }
                 } while ($count -gt 0)
+                if ($total_bytes -ge 0 -and $downloaded_bytes -ne $total_bytes) {
+                    throw 'The download ended before the expected number of bytes arrived.'
+                }
+                $target_stream.Dispose()
+                $target_stream = $null
+                if ([System.IO.File]::Exists($destination)) {
+                    [System.IO.File]::Replace($temporaryPath, $destination, [System.Management.Automation.Language.NullString]::Value)
+                } else {
+                    [System.IO.File]::Move($temporaryPath, $destination)
+                }
                 Write-Progress -Completed -Activity "Downloading $URL"
             }
             finally {
                 if ($timer) { $timer.Stop() }
                 if ($timer_event) { Unregister-Event -SubscriptionId $timer_event.Id }
+                if ($timer_event) { Remove-Job -Id $timer_event.Id -Force -ErrorAction SilentlyContinue }
+                if ($timer) { $timer.Dispose() }
                 if ($target_stream) { $target_stream.Dispose() }
-                # If file exists and $count is not zero or $null, than script was interrupted by user
-                if ((Test-Path $Filepath) -and $count) { Remove-Item -Path $Filepath }
             }
         }
         finally {
             if ($response) { $response.Dispose() }
             if ($response_stream) { $response_stream.Dispose() }
+            if (Test-Path -LiteralPath $temporaryPath) { Remove-Item -LiteralPath $temporaryPath -Force }
         }
     }
 }

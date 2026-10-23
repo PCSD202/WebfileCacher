@@ -12,7 +12,7 @@
 RootModule = 'WebfileCacher.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.1.0'
+ModuleVersion = '1.2.1'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -107,7 +107,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = 'Added humanizer to format downloads better'
+        ReleaseNotes = 'Use basic web parsing, preserve cached files on failed downloads, and refresh when Last-Modified is unavailable.'
 
     } # End of PSData hashtable
 
